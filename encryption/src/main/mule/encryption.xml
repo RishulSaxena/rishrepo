@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd"></mule>
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:crypto="http://www.mulesoft.org/schema/mule/crypto"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/crypto http://www.mulesoft.org/schema/mule/crypto/current/mule-crypto.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="079de285-7589-4658-86c7-b11ee0b77bca" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<crypto:pgp-config name="Crypto_Pgp1" doc:name="Crypto Pgp" doc:id="90f4dae9-0d01-4fb3-981b-67cd9cf67734" publicKeyring="certificates/publicCertificate/01A3C047230796187A832F0A00576FD96AB17364.gpg" privateKeyring="certificates/privateCertificate/secret.gpg" >
+		<crypto:pgp-key-infos >
+			<crypto:pgp-asymmetric-key-info keyId="0057 6FD9 6AB1 7364" passphrase="coco234" fingerprint="01A3C047230796187A832F0A00576FD96AB17364"/>
+		</crypto:pgp-key-infos>
+	</crypto:pgp-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="d6f313b9-5f20-45d1-8f19-41c8e1982281" >
+		<vm:queues >
+			<vm:queue queueName="pgpQueue" />
+		</vm:queues>
+	</vm:config>
+	<flow name="encryptionFlow" doc:id="770e7c9b-a64c-4dbf-ba01-106c208a5308" >
+		<http:listener doc:name="HttpListener" doc:id="5b0952f5-196e-46d8-9c60-720917c4f994" config-ref="HTTP_Listener_config" path="/pgpEncypt" allowedMethods="POST"/>
+		<crypto:pgp-encrypt doc:name="Pgp encrypt" doc:id="8d5680a3-7e19-448f-ae67-d9024e225e54" config-ref="Crypto_Pgp1" keyId="0057 6FD9 6AB1 7364" target="pgpvar"/>
+		<logger level="INFO" doc:name="Logger" doc:id="2f9f9598-1e1d-4e57-903f-3b32f7e43186" message="#[vars.pgpvar]" />
+		<vm:publish doc:name="Publish" doc:id="1c5e799a-a64b-4752-92fb-16b2a1d68143" config-ref="VM_Config" queueName="pgpQueue">
+			<vm:content ><![CDATA[#[vars.pgpvar]]]></vm:content>
+		</vm:publish>
+	</flow>
+	<flow name="encryptionFlow1" doc:id="35ce12fe-0a4d-459c-b0e6-bcf73bf9142d" >
+		<vm:listener doc:name="Listener" doc:id="373168da-0de2-4e43-a943-426ae8ec22da" config-ref="VM_Config" queueName="pgpQueue"/>
+		<crypto:pgp-decrypt doc:name="Pgp decrypt" doc:id="60a67956-951e-4332-a59b-9675d1769e1d" config-ref="Crypto_Pgp1"/>
+		<logger level="INFO" doc:name="Logger" doc:id="496d4d1d-48ad-491a-875d-7b2bdf6b6c4e" message="Decrypted value----&gt;&gt;&gt;&gt; #[payload]"/>
+	</flow>
+</mule>
